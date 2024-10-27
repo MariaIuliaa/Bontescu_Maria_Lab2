@@ -8,20 +8,26 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Bontescu_Maria_Lab2.Data;
 using Bontescu_Maria_Lab2.Models;
+using System.Diagnostics;
 
 namespace Bontescu_Maria_Lab2.Pages.Books
 {
-    public class EditModel : PageModel
+    public class EditModel : BookCategoriesPageModel
     {
         private readonly Bontescu_Maria_Lab2.Data.Bontescu_Maria_Lab2Context _context;
 
         public EditModel(Bontescu_Maria_Lab2.Data.Bontescu_Maria_Lab2Context context)
         {
             _context = context;
+
         }
 
         [BindProperty]
         public Book Book { get; set; } = default!;
+
+        // Proprietate pentru categoriile alocate
+        public List<AssignedCategoryData> AssignedCategoryDataList { get; set; } = new List<AssignedCategoryData>();
+
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
@@ -30,48 +36,130 @@ namespace Bontescu_Maria_Lab2.Pages.Books
                 return NotFound();
             }
 
-            var book = await _context.Book.FirstOrDefaultAsync(m => m.ID == id);
-            if (book == null)
+            Book = await _context.Book
+     .Include(b => b.Author)
+     .Include(b => b.Publisher)
+     .Include(b => b.BookCategories) // Include relația BookCategories
+     .ThenInclude(bc => bc.Category)  // Include și Categoria asociată
+     .FirstOrDefaultAsync(m => m.ID == id);
+
+
+
+            if (Book == null)
             {
                 return NotFound();
             }
-            Book = book;
 
             // Populează ViewData pentru Author și Publisher
+            var authorList = _context.Author.Select(x => new
+            {
+                x.ID,
+                FullName = x.LastName + " " + x.FirstName
+            });
             ViewData["AuthorID"] = new SelectList(_context.Author, "ID", "FullName");
             ViewData["PublisherID"] = new SelectList(_context.Publisher, "ID", "PublisherName");
+
+            // Populează AssignedCategoryDataList pentru a putea afișa categoriile selectate
+            PopulateAssignedCategoryData(_context, Book);
 
             return Page();
         }
 
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see https://aka.ms/RazorPagesCRUD.
-        public async Task<IActionResult> OnPostAsync()
+
+
+
+        public async Task<IActionResult> OnPostAsync(int? id, string[] selectedCategories)
         {
-            if (!ModelState.IsValid)
+            if (id == null)
             {
-                return Page();
+                return NotFound();
             }
 
-            _context.Attach(Book).State = EntityState.Modified;
+            var bookToUpdate = await _context.Book
+                .Include(b => b.Author)
+                .Include(b => b.Publisher)
+                .Include(b => b.BookCategories)
+                .ThenInclude(bc => bc.Category)
+                .FirstOrDefaultAsync(b => b.ID == id);
 
-            try
+            if (bookToUpdate == null)
             {
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
-            catch (DbUpdateConcurrencyException)
+
+            if (await TryUpdateModelAsync<Book>(
+                bookToUpdate,
+                "Book",
+                b => b.Title, b => b.Price, b => b.PublishingDate, b => b.AuthorID, b => b.PublisherID))
             {
-                if (!BookExists(Book.ID))
+                UpdateBookCategories(_context, selectedCategories, bookToUpdate);
+
+                try
                 {
-                    return NotFound();
+                    Debug.WriteLine("Attempting to save changes to the database...");
+                    await _context.SaveChangesAsync();
+                    Debug.WriteLine("Changes successfully saved to the database.");
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!BookExists(bookToUpdate.ID))
+                    {
+                        Debug.WriteLine("Book no longer exists, returning NotFound.");
+                        return NotFound();
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Concurrency exception occurred.");
+                        throw;
+                    }
+                }
+
+                return RedirectToPage("./Index - Copy");
+            }
+
+            PopulateAssignedCategoryData(_context, bookToUpdate);
+            return Page();
+        }
+
+
+        private void UpdateBookCategories(Bontescu_Maria_Lab2Context context, string[] selectedCategories, Book bookToUpdate)
+        {
+            Debug.WriteLine("Entering UpdateBookCategories method");
+
+            if (selectedCategories == null)
+            {
+                bookToUpdate.BookCategories = new List<BookCategory>();
+                return;
+            }
+
+            var selectedCategoriesHS = new HashSet<string>(selectedCategories);
+            var bookCategories = new HashSet<int>(bookToUpdate.BookCategories.Select(c => c.CategoryID));
+
+            foreach (var category in context.Category)
+            {
+                if (selectedCategoriesHS.Contains(category.ID.ToString()))
+                {
+                    if (!bookCategories.Contains(category.ID))
+                    {
+                        bookToUpdate.BookCategories.Add(new BookCategory
+                        {
+                            BookID = bookToUpdate.ID,
+                            CategoryID = category.ID
+                        });
+                    }
                 }
                 else
                 {
-                    throw;
+                    if (bookCategories.Contains(category.ID))
+                    {
+                        var categoryToRemove = bookToUpdate.BookCategories.FirstOrDefault(c => c.CategoryID == category.ID);
+                        if (categoryToRemove != null)
+                        {
+                            context.Remove(categoryToRemove);
+                        }
+                    }
                 }
             }
-
-            return RedirectToPage("./Index");
         }
 
         private bool BookExists(int id)

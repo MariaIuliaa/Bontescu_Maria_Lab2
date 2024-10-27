@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Bontescu_Maria_Lab2.Data;
 using Bontescu_Maria_Lab2.Models;
 
-namespace Bontescu_Maria_Lab2.Pages.Books
+namespace Bontescu_Maria_Lab2.Pages.Categories
 {
     public class DeleteModel : PageModel
     {
@@ -20,46 +20,44 @@ namespace Bontescu_Maria_Lab2.Pages.Books
         }
 
         [BindProperty]
-      public Book Book { get; set; } = default!;
+      public Category Category { get; set; } = default!;
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
-            if (id == null || _context.Book == null)
+            if (id == null || _context.Category == null)
             {
                 return NotFound();
             }
 
-            var book = await _context.Book
-                .Include(b => b.Author) // Include autorul pentru a avea acces la FullName
-                .FirstOrDefaultAsync(m => m.ID == id);
+            var category = await _context.Category.FirstOrDefaultAsync(m => m.ID == id);
 
-            if (book == null)
+            if (category == null)
             {
                 return NotFound();
             }
-            else
+            else 
             {
-                Book = book;
+                Category = category;
             }
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(int? id)
         {
-            if (id == null || _context.Book == null)
+            if (id == null || _context.Category == null)
             {
                 return NotFound();
             }
-            var book = await _context.Book.FindAsync(id);
+            var category = await _context.Category.FindAsync(id);
 
-            if (book != null)
+            if (category != null)
             {
-                Book = book;
-                _context.Book.Remove(Book);
+                Category = category;
+                _context.Category.Remove(Category);
                 await _context.SaveChangesAsync();
             }
 
-            return RedirectToPage("./Index - Copy");
+            return RedirectToPage("./Index");
         }
     }
 }
