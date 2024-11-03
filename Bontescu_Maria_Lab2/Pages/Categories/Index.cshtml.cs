@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Bontescu_Maria_Lab2.Data;
 using Bontescu_Maria_Lab2.Models;
+using Bontescu_Maria_Lab2.ViewModels; // Include the ViewModel namespace
 
 namespace Bontescu_Maria_Lab2.Pages.Categories
 {
@@ -19,13 +20,22 @@ namespace Bontescu_Maria_Lab2.Pages.Categories
             _context = context;
         }
 
-        public IList<Category> Category { get;set; } = default!;
+        public CategoryBooksViewModel CategoryBooks { get; set; } = new CategoryBooksViewModel();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(int? categoryId)
         {
-            if (_context.Category != null)
+            CategoryBooks.Categories = await _context.Category.ToListAsync();
+
+            if (categoryId.HasValue)
             {
-                Category = await _context.Category.ToListAsync();
+                CategoryBooks.Books = await _context.Book
+                    .Include(b => b.Author)
+                    .Where(b => b.BookCategories.Any(bc => bc.CategoryID == categoryId))
+                    .ToListAsync();
+            }
+            else
+            {
+                CategoryBooks.Books = new List<Book>(); // Asigură că lista nu este niciodată null
             }
         }
     }

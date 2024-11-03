@@ -24,5 +24,13 @@ namespace Bontescu_Maria_Lab2.Models
                 return $"{FirstName} {LastName}";
             }
         }
+
+        //public string FullName
+        //{
+        //    get
+        //    {
+        //        return FirstName + " " + LastName;
+        //    }
+        //}
     }
 }
