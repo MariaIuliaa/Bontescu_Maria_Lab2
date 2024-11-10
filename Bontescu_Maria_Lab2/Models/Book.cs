@@ -22,6 +22,9 @@ namespace Bontescu_Maria_Lab2.Models
 
         //public ICollection<BookCategory>? BookCategories { get; set; }
         public ICollection<BookCategory> BookCategories { get; set; } = new List<BookCategory>();
+        //lab5
+        public ICollection<Borrowing>? Borrowings { get; set; }
+
 
     }
 }
