@@ -9,9 +9,11 @@ using Microsoft.EntityFrameworkCore;
 using Bontescu_Maria_Lab2.Data;
 using Bontescu_Maria_Lab2.Models;
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Bontescu_Maria_Lab2.Pages.Books
 {
+    [Authorize(Roles = "Admin")]
     public class EditModel : BookCategoriesPageModel
     {
         private readonly Bontescu_Maria_Lab2.Data.Bontescu_Maria_Lab2Context _context;
